@@ -32,6 +32,8 @@ int main(int ac, char* av[])
 {
   std::string outputFolder;
   std::string inputFolder;
+  std::string ccFolder;
+  
   
   
   std::cout<<"\n\
@@ -46,6 +48,7 @@ This program comes with ABSOLUTELY NO WARRANTY.\n\
       ("help", "produce help message")
       ("input,i",  po::value<std::string>()->default_value("."), "input folder")
       ("output,o", po::value<std::string>()->default_value("output"), "output folder")
+      ("cc,c", po::value<std::string>()->default_value("."), "folder with ccx, ccy and ccz files (cell centers)")
     ;
     
     po::positional_options_description p;
@@ -69,6 +72,10 @@ This program comes with ABSOLUTELY NO WARRANTY.\n\
       std::cout << "input folder: " << vm["input"].as<std::string>()<<std::endl ;
     }
     inputFolder = vm["input"].as<std::string>();
+    if (vm.count("cc")) {
+      std::cout << "cc folder: " << vm["cc"].as<std::string>()<<std::endl ;
+    }
+    ccFolder = vm["cc"].as<std::string>();
   }
   
   catch(std::exception& e) {
@@ -105,6 +112,24 @@ This program comes with ABSOLUTELY NO WARRANTY.\n\
   
   std::cout<<inputFolders.size()<<" file(s) found to analyze"<<std::endl;
   
+  
+  fs::path ccPath (ccFolder);
+  
+  if ( fs::exists(ccPath) && fs::is_directory(ccPath)) {
+    fs::path ccx = ccPath.string() + "/ccx";
+    fs::path ccy = ccPath.string() + "/ccy";
+    fs::path ccz = ccPath.string() + "/ccz";
+    if(fs::is_regular_file(ccx) and fs::is_regular_file(ccy) and fs::is_regular_file(ccz)) {
+        std::cout<<"ccx, ccy and ccz files are found"<<std::endl;
+    } else {
+      std::cerr<<"Please specify the folder where ccx, ccy and ccz files are available!"<<std::endl;
+      exit (EXIT_FAILURE);
+    }
+  } else {
+    std::cerr<<"Please specify the folder where ccx, ccy and ccz files are available!"<<std::endl;
+    exit (EXIT_FAILURE);
+  }
+
   //=====================================================
   if (not fs::is_directory(outputFolder)) {
     std::cout<<"The directory " << outputFolder<< " does not exists. Creating."<<std::endl;
