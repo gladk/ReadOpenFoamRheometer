@@ -1,5 +1,5 @@
 #===========================================================
-ADD_EXECUTABLE(readopenfoam main.cpp)
+ADD_EXECUTABLE(readopenfoam main.cpp rheometer.cpp)
   
 TARGET_LINK_LIBRARIES(readopenfoam ${Boost_LIBRARIES})
 INSTALL(TARGETS readopenfoam DESTINATION ${CMAKE_INSTALL_BINDIR})

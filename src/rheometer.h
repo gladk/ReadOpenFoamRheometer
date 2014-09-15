@@ -1,7 +1,7 @@
 /*
     This file is part of ReadOpenFoam.
     ReadOpenFoam is the programm to read OpenFoam files and create VTK.
-    Copyright (C) 2013, 2014 TU Bergakademie Freiberg, Institute for Mechanics and Fluid Dynamics
+    Copyright (C) 2014 TU Bergakademie Freiberg, Institute for Mechanics and Fluid Dynamics
 
     Author: 2014 Anton Gladky <gladky.anton@gmail.com>
 
@@ -24,17 +24,14 @@
 #include <Eigen/Dense>
 #include <memory>
 #include <vector>
+#include "main.h"
 
-class particle {
+class rheometer {
   private:
-    Eigen::Vector3d _c, _v;       // Center of mass, velocity
-    unsigned long long _id;       // Particle id
-    unsigned int _fileId;         // File number of the particle
-    unsigned int _snapshot;       // Snapshot
+    std::string _outputFolder;
+    std::string _inputFolder;
+    std::string _ccFolder;
     
   public:
-    particle (unsigned long long id, Eigen::Vector3d c, Eigen::Vector3d v) { _id = id; _c = c; _v = v;}
-    unsigned long long id() const {return _id;};
-    Eigen::Vector3d c() const {return _c;}
-    Eigen::Vector3d v() const {return _v;}
+    rheometer (const std::string & outputFolder, const std::string & inputFolder, const std::string & ccFolder);
 };
