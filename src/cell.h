@@ -27,14 +27,11 @@
 
 class cell {
   private:
-    Eigen::Vector3d _c, _v;       // Center of mass, velocity
-    unsigned long long _id;       // Particle id
-    unsigned int _fileId;         // File number of the particle
-    unsigned int _snapshot;       // Snapshot
-    
+    Eigen::Vector3d _c;                             // Center coordinates in cylindrical coordinates (r,z,fi)
+    std::vector<Eigen::Vector3d> _u;                // Velocity vector
   public:
-    cell (unsigned long long id, Eigen::Vector3d c) { _id = id; _c = c;}
-    unsigned long long id() const {return _id;};
+    cell (Eigen::Vector3d c) {_c=c;};
+    void addU (const Eigen::Vector3d & u) {_u.push_back(u);}
     Eigen::Vector3d c() const {return _c;}
-    Eigen::Vector3d v() const {return _v;}
+    const Eigen::Vector3d U(unsigned int i) const {return _u[i];}
 };

@@ -24,14 +24,22 @@
 #include <Eigen/Dense>
 #include <memory>
 #include <vector>
+#include <list>
 #include "main.h"
+#include "cell.h"
 
 class rheometer {
   private:
     std::string _outputFolder;
     std::string _inputFolder;
     std::string _ccFolder;
+    std::vector< boost::filesystem::path > _inputFolders;
+    boost::filesystem::path _ccPath;
+    std::vector<cell> _cells;
+    std::vector<double> _time;
     
   public:
     rheometer (const std::string & outputFolder, const std::string & inputFolder, const std::string & ccFolder);
+    void loadData ();
+    void loadCC (std::vector<double> & cc, const std::string & file);
 };

@@ -22,18 +22,19 @@
 #include "rheometer.h"
 
 bool sortFileTimeCreate(boost::filesystem::path i, boost::filesystem::path j) {
-  return (boost::filesystem::last_write_time(i) < boost::filesystem::last_write_time(j));
+  boost::filesystem::path ii = i.string() + "/uniform/time";
+  boost::filesystem::path jj = j.string() + "/uniform/time";
+  return (boost::filesystem::last_write_time(ii) < boost::filesystem::last_write_time(jj));
 }
 
 rheometer::rheometer (const std::string & outputFolder, const std::string & inputFolder, const std::string & ccFolder) {
-  
   namespace fs = boost::filesystem;
+  
   _outputFolder = outputFolder;
   _inputFolder = inputFolder;
   _ccFolder = ccFolder;
   
   
-  std::vector< fs::path > inputFolders;
   fs::path inpDir (inputFolder);
   fs::directory_iterator end_iter;
   
@@ -45,24 +46,25 @@ rheometer::rheometer (const std::string & outputFolder, const std::string & inpu
       {
         fs::path curDir (*dir_iter);
         fs::path curFileVel = curDir.string() + "/U";
+        fs::path curFileTime= curDir.string() + "/uniform/time";
         
-        if(fs::is_regular_file(curFileVel)) {
-          inputFolders.push_back(curDir);
+        if(fs::is_regular_file(curFileVel) && fs::is_regular_file(curFileTime)) {
+          _inputFolders.push_back(curDir);
         }
       }
     }
   }
   
-  std::sort(inputFolders.begin(), inputFolders.end(), sortFileTimeCreate);
+  std::sort(_inputFolders.begin(), _inputFolders.end(), sortFileTimeCreate);
   
-  std::cout<<inputFolders.size()<<" file(s) found to analyze"<<std::endl;
+  std::cout<<_inputFolders.size()<<" file(s) found to analyze"<<std::endl;
   
-  fs::path ccPath (ccFolder);
+  _ccPath = ccFolder;
   
-  if ( fs::exists(ccPath) && fs::is_directory(ccPath)) {
-    fs::path ccx = ccPath.string() + "/ccx";
-    fs::path ccy = ccPath.string() + "/ccy";
-    fs::path ccz = ccPath.string() + "/ccz";
+  if ( fs::exists(_ccPath) && fs::is_directory(_ccPath)) {
+    fs::path ccx = _ccPath.string() + "/ccx";
+    fs::path ccy = _ccPath.string() + "/ccy";
+    fs::path ccz = _ccPath.string() + "/ccz";
     if(fs::is_regular_file(ccx) and fs::is_regular_file(ccy) and fs::is_regular_file(ccz)) {
         std::cout<<"ccx, ccy and ccz files are found"<<std::endl;
     } else {
@@ -82,5 +84,89 @@ rheometer::rheometer (const std::string & outputFolder, const std::string & inpu
     }
   }
   
+  loadData();
 }
 
+void rheometer::loadData () {
+  namespace fs = boost::filesystem;
+  
+  //Load coordinates
+  std::vector<double> ccx; loadCC(ccx, "ccx");
+  std::vector<double> ccy; loadCC(ccy, "ccy");
+  std::vector<double> ccz; loadCC(ccz, "ccz");
+  
+  
+  if (ccx.size()==ccy.size() and ccx.size()==ccz.size()) {
+    std::cout<<ccx.size()<<" coordinates loaded"<<std::endl;
+    for (unsigned int i=0; i<ccx.size(); i++)  {
+      _cells.push_back(Eigen::Vector3d(ccx[i],ccy[i],ccz[i]));
+    }
+  } else {
+    std::cerr << "error: ccx!=ccy!=ccz" << std::endl;
+    exit (EXIT_FAILURE);
+  }
+  
+  BOOST_FOREACH(fs::path f, _inputFolders) {
+    // Time  =======================================================
+    fs::path curFileTime = f.string() + "/uniform/time";
+    fs::path curFileU = f.string() + "/U";
+    if (not (fs::exists(curFileU)) or not (fs::exists(curFileTime))) {continue;}
+    
+    std::ifstream fileT(curFileTime.string(), std::ios_base::in | std::ios_base::binary);
+    boost::iostreams::filtering_istream inT;
+    inT.push(fileT);
+    unsigned int i = 0;
+    for(std::string str; std::getline(inT, str); )
+    {
+      if (i == 17) {
+        std::vector<std::string> tokens;
+        std::istringstream iss(str);
+        copy(std::istream_iterator<std::string>(iss),
+             std::istream_iterator<std::string>(),
+             std::back_inserter<std::vector<std::string> >(tokens));
+        _time.push_back(stod (tokens[1]));
+        break;
+      }
+      i++;
+    }
+    std::cout<<"Time "<<_time[_time.size()-1]<<std::endl;
+    // U  =======================================================
+    
+    std::ifstream fileU(curFileU.string(), std::ios_base::in | std::ios_base::binary);
+    boost::iostreams::filtering_istream inU;
+    inU.push(fileU);
+    i = 0;
+    const unsigned int ccSize = _cells.size();
+    for(std::string str; std::getline(inU, str); )
+    {
+      if (i > 21 and i < (22 + ccSize)) {
+        std::vector<std::string> tokens;
+        std::istringstream iss(str);
+        copy(std::istream_iterator<std::string>(iss),
+             std::istream_iterator<std::string>(),
+             std::back_inserter<std::vector<std::string> >(tokens));
+        Eigen::Vector3d U(stod(tokens[0].erase(0,1)), stod(tokens[1]), stod(tokens[2].erase(tokens[2].size()-1,1)));
+        _cells[i-22].addU(U);
+      }
+      i++;
+    }
+  }
+}
+
+void rheometer::loadCC (std::vector<double> & cc, const std::string & file) {
+  namespace fs = boost::filesystem;
+  fs::path ccT = _ccPath.string() + "/"+ file;
+  std::ifstream fileT(ccT.string(), std::ios_base::in | std::ios_base::binary);
+  boost::iostreams::filtering_istream inT;
+  inT.push(fileT);
+  unsigned int i = 0;
+  unsigned int pointsNumber = 0;
+  for(std::string strT; std::getline(inT, strT); ) {
+    if (i == 20) {
+      pointsNumber = stoi (strT);
+    } else if (i > 21 and i < (pointsNumber + 22)) {
+      cc.push_back(stod (strT));
+    }
+    i++;
+  }
+}
