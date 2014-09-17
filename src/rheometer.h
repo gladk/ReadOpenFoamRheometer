@@ -35,7 +35,7 @@ class rheometer {
     std::string _ccFolder;
     std::vector< boost::filesystem::path > _inputFolders;
     boost::filesystem::path _ccPath;
-    std::vector<cell> _cells;
+    std::vector<std::shared_ptr<cell> > _cells;
     std::vector<double> _time;
     
   public:

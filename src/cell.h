@@ -27,11 +27,24 @@
 
 class cell {
   private:
-    Eigen::Vector3d _c;                             // Center coordinates in cylindrical coordinates (r,z,fi)
+    Eigen::Vector3d _cC;                            // Center coordinates in cartesian coordinates (r,z,fi)
     std::vector<Eigen::Vector3d> _u;                // Velocity vector
   public:
-    cell (Eigen::Vector3d c) {_c=c;};
+    cell (Eigen::Vector3d c) {_cC=c;};
     void addU (const Eigen::Vector3d & u) {_u.push_back(u);}
-    Eigen::Vector3d c() const {return _c;}
+    Eigen::Vector3d c() const {return _cC;}
     const Eigen::Vector3d U(unsigned int i) const {return _u[i];}
+    const Eigen::Vector3d Ucyl(unsigned int i) const {return cyl(_u[i]);}  //Returns (rho, z, phi)
+    const Eigen::Vector3d Ccyl() const {return cyl(_cC);}                  //Returns (rho, z, phi)
+    const Eigen::Vector3d cyl(Eigen::Vector3d c) const {                   //Returns (rho, z, phi)
+      double const& x = c(0);
+      double const& y = c(1);
+      double const& z = c(2);
+      
+      double rho = sqrt(x*x + y*y);
+      
+      return Eigen::Vector3d(rho, z, (atan2(y,x)));
+    };
 };
+
+typedef Eigen::Matrix<Eigen::Vector3d, Eigen::Dynamic, Eigen::Dynamic> SliceMatrix;

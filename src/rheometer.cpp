@@ -27,6 +27,27 @@ bool sortFileTimeCreate(boost::filesystem::path i, boost::filesystem::path j) {
   return (boost::filesystem::last_write_time(ii) < boost::filesystem::last_write_time(jj));
 }
 
+bool sortCells(const std::shared_ptr<cell> & i, const std::shared_ptr<cell> & j) {
+  if (i->Ccyl()(1) < j->Ccyl()(1)) {              // Z
+    return true;
+  } else if (i->Ccyl()(1) == j->Ccyl()(1)) {      // Rho
+    if (i->Ccyl()(0) < j->Ccyl()(0)) {
+      return true;
+    } else if (i->Ccyl()(0) == j->Ccyl()(0)) {
+      if (i->Ccyl()(2) < j->Ccyl()(2)) {          // Phi
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+  return true;
+}
+
 rheometer::rheometer (const std::string & outputFolder, const std::string & inputFolder, const std::string & ccFolder) {
   namespace fs = boost::filesystem;
   
@@ -85,6 +106,13 @@ rheometer::rheometer (const std::string & outputFolder, const std::string & inpu
   }
   
   loadData();
+  
+  unsigned int i = 0;
+  BOOST_FOREACH(std::shared_ptr <cell> c, _cells) {
+    std::cout<<std::setprecision(10)<<c->Ccyl()(1)<<" "<<c->Ccyl()(0)<<" "<<c->Ccyl()(2)<<std::endl;
+    i++;
+  }
+  
 }
 
 void rheometer::loadData () {
@@ -99,7 +127,8 @@ void rheometer::loadData () {
   if (ccx.size()==ccy.size() and ccx.size()==ccz.size()) {
     std::cout<<ccx.size()<<" coordinates loaded"<<std::endl;
     for (unsigned int i=0; i<ccx.size(); i++)  {
-      _cells.push_back(Eigen::Vector3d(ccx[i],ccy[i],ccz[i]));
+      std::shared_ptr<cell> cellTmp = std::make_shared<cell>(Eigen::Vector3d(ccx[i],ccy[i],ccz[i]));
+      _cells.push_back(cellTmp);
     }
   } else {
     std::cerr << "error: ccx!=ccy!=ccz" << std::endl;
@@ -146,11 +175,13 @@ void rheometer::loadData () {
              std::istream_iterator<std::string>(),
              std::back_inserter<std::vector<std::string> >(tokens));
         Eigen::Vector3d U(stod(tokens[0].erase(0,1)), stod(tokens[1]), stod(tokens[2].erase(tokens[2].size()-1,1)));
-        _cells[i-22].addU(U);
+        _cells[i-22]->addU(U);
       }
       i++;
     }
   }
+  
+  std::sort(_cells.begin(), _cells.end(), sortCells);
 }
 
 void rheometer::loadCC (std::vector<double> & cc, const std::string & file) {
