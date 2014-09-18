@@ -342,7 +342,7 @@ void  rheometer::calculateAvgU() {
   for (unsigned int t = 0; t < _time.size(); t++) {
     double avgU = 0;
     for (unsigned int z = 0; z < _cellVectorTmp.size(); z++) {
-      avgU+=(_cellVectorTmp[z])->Ucyl(z)(2);
+      avgU+=(_cellVectorTmp[z])->Ucyl(t)(2);
     }
     // We do consider only Phi-direction!
     avgU/=_cellVectorTmp.size();
