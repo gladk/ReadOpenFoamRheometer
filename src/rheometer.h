@@ -37,9 +37,14 @@ class rheometer {
     boost::filesystem::path _ccPath;
     std::vector<std::shared_ptr<cell> > _cells;
     std::vector<double> _time;
+    std::map<double, unsigned int> _RhoMap, _ZMap;
+    SliceMatrix _sliceMatrix;
+    std::vector<std::shared_ptr<cell> > _cellVectorTmp;
     
   public:
     rheometer (const std::string & outputFolder, const std::string & inputFolder, const std::string & ccFolder);
     void loadData ();
+    void prepareMatrix ();
     void loadCC (std::vector<double> & cc, const std::string & file);
+    void calculateAvgU();
 };

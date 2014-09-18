@@ -106,13 +106,7 @@ rheometer::rheometer (const std::string & outputFolder, const std::string & inpu
   }
   
   loadData();
-  
-  unsigned int i = 0;
-  BOOST_FOREACH(std::shared_ptr <cell> c, _cells) {
-    std::cout<<std::setprecision(10)<<c->Ccyl()(1)<<" "<<c->Ccyl()(0)<<" "<<c->Ccyl()(2)<<std::endl;
-    i++;
-  }
-  
+  prepareMatrix();
 }
 
 void rheometer::loadData () {
@@ -200,4 +194,70 @@ void rheometer::loadCC (std::vector<double> & cc, const std::string & file) {
     }
     i++;
   }
+}
+
+void rheometer::prepareMatrix() {
+  std::list<double> RhoValues;
+  std::list<double> ZValues;
+  unsigned int i = 0;
+  BOOST_FOREACH(std::shared_ptr <cell> c, _cells) {
+    //std::cout<<std::setprecision(10)<<c->Ccyl()(1)<<" "<<c->Ccyl()(0)<<" "<<c->Ccyl()(2)<<std::endl;
+    RhoValues.push_back(c->Ccyl()(0));
+    ZValues.push_back(c->Ccyl()(1));
+    i++;
+  }
+  RhoValues.sort(); RhoValues.unique();
+  ZValues.sort();   ZValues.unique();
+  
+  i=0;
+  BOOST_FOREACH(double rho, RhoValues) {
+    _RhoMap[rho]=i;
+    i++;
+  }
+  i=0;
+  BOOST_FOREACH(double z, ZValues) {
+    _ZMap[z]=i;
+    i++;
+  }
+  
+  _sliceMatrix.resize(RhoValues.size(), ZValues.size());
+  _sliceMatrix.fill(nullptr);
+    
+  for (unsigned d=0; d<_cells.size(); d++) {
+    if (d==0 or 
+        (Eigen::Vector2d(_cells[d]->Ccyl()(0),_cells[d]->Ccyl()(1)) == Eigen::Vector2d(_cells[d-1]->Ccyl()(0),_cells[d-1]->Ccyl()(1)))) {
+      _cellVectorTmp.push_back(_cells[d]);
+    } else {
+      calculateAvgU();
+    }
+  }
+  
+  /*
+  for (size_t r=0; r<RhoValues.size(); r++) {
+    for (size_t c=0; c<ZValues.size(); c++) {
+      if (not(_sliceMatrix(r,c))) {
+        std::cout<<"!!!!!!!r="<<r<<"; c="<<c<<std::endl; 
+      } else {
+        std::cout<<"!r="<<r<<"; "<<(_sliceMatrix(r,c))->Ccyl()(0)<<"c="<<c<<"; "<<(_sliceMatrix(r,c))->Ccyl()(1)
+          <<"   U:["<<(_sliceMatrix(r,c))->U(5)(0)<<"; "<<(_sliceMatrix(r,c))->U(5)(1)<<"; "<<(_sliceMatrix(r,c))->U(5)(2)<<"]"<<std::endl; 
+      }
+    }
+  }
+  */
+  
+}
+
+void  rheometer::calculateAvgU() {
+  std::shared_ptr<cell> cellTmp = std::make_shared<cell>(Eigen::Vector3d((_cellVectorTmp[0])->c()(0), (_cellVectorTmp[0])->c()(1), (_cellVectorTmp[0])->c()(2)));
+  for (unsigned int t = 0; t < _time.size(); t++) {
+    double avgU = 0;
+    for (unsigned int z = 0; z < _cellVectorTmp.size(); z++) {
+      avgU+=(_cellVectorTmp[z])->Ucyl(z)(2);
+    }
+    // We do consider only Phi-direction!
+    avgU/=_cellVectorTmp.size();
+    cellTmp->addU(Eigen::Vector3d(0.0, 0.0, avgU));
+  }
+  _sliceMatrix(_RhoMap[(_cellVectorTmp[0])->Ccyl()(0)], _ZMap[(_cellVectorTmp[0])->Ccyl()(1)]) = cellTmp;
+  _cellVectorTmp.clear();
 }
