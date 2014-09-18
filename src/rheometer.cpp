@@ -21,6 +21,18 @@
 
 #include "rheometer.h"
 
+#include "interpolation.h"
+void function_cx_1_func(const alglib::real_1d_array &c, const alglib::real_1d_array &x, double &func, void *ptr) 
+  {
+      /*
+       * 
+       * The formula (18) in GraMat. Rheology of weakly wetted granular materials - a comparison of experimental and numerical data.
+       * Ruediger Schwarze · Anton Gladkyy · Fabian Uhlig · Stefan Luding, 2013
+       * 
+       */
+       func = 0.5 + 0.5*erf((x[0] - c[0])/c[1]);
+  }
+
 bool sortFileTimeCreate(boost::filesystem::path i, boost::filesystem::path j) {
   boost::filesystem::path ii = i.string() + "/uniform/time";
   boost::filesystem::path jj = j.string() + "/uniform/time";
@@ -107,6 +119,98 @@ rheometer::rheometer (const std::string & outputFolder, const std::string & inpu
   
   loadData();
   prepareMatrix();
+  
+  
+  /*
+  for (size_t r=0; r<RhoValues.size(); r++) {
+    for (size_t c=0; c<ZValues.size(); c++) {
+      if (not(_sliceMatrix(r,c))) {
+        std::cout<<"!!!!!!!r="<<r<<"; c="<<c<<std::endl; 
+      } else {
+        std::cout<<"!r="<<r<<"; "<<(_sliceMatrix(r,c))->Ccyl()(0)<<"c="<<c<<"; "<<(_sliceMatrix(r,c))->Ccyl()(1)
+          <<"   U:["<<(_sliceMatrix(r,c))->U(5)(0)<<"; "<<(_sliceMatrix(r,c))->U(5)(1)<<"; "<<(_sliceMatrix(r,c))->U(5)(2)<<"]"<<std::endl; 
+      }
+    }
+  }
+  */
+  
+  const double maxR = (_sliceMatrix(_sliceMatrix.rows()-1,0))->Ccyl()(0);
+  std::cout<<"maxR: "<<maxR<<std::endl;
+  double maxOmega = 0;
+  
+  std::cout<<"_sliceMatrix.cols(): "<<_sliceMatrix.cols()<<std::endl;
+  std::cout<<"_sliceMatrix.rows(): "<<_sliceMatrix.rows()<<std::endl;
+  
+  
+  ofstream exportFile ("./gnuplot_daten");
+  ofstream exportFileBand ("./gnuplot_daten_band");
+  
+  exportFile     << "#001_tId\t002_t\t003_rId\t004_r\t005_zId\t006_z\t007_omega\t008_omegaNorm\n";
+  exportFileBand << "#001_tId\t002_t\t003_zId\t004_z\005_RZ\t\006_W\n";
+  
+  for (size_t t=0; t<_time.size(); t++) {
+    for (int c=0; c<_sliceMatrix.cols(); c++) {
+      if (_sliceMatrix(_sliceMatrix.rows()-1,c)) {
+        maxOmega = (_sliceMatrix(_sliceMatrix.rows()-1,c))->U(t)(2) / (2*M_PI*_sliceMatrix(_sliceMatrix.rows()-1,c)->Ccyl()(0));
+      }
+      alglib::real_2d_array x;
+      alglib::real_1d_array y;
+      alglib::real_1d_array cA = "[0.08, 0.0075]";
+      double epsf = 0;
+      double epsx = 0.0000001;
+      alglib::ae_int_t maxits = 0;
+      alglib::ae_int_t info;
+      alglib::lsfitstate state;
+      alglib::lsfitreport rep;
+      double diffstep = 0.000001;
+      
+      x.setlength(_sliceMatrix.rows(), 1);
+      y.setlength(_sliceMatrix.rows());
+      
+      /*
+      for(unsigned int r=0; r<_cfg->SecRadial(); r++) {
+        x(r,0) = (this->getBand(r,0))->midLinedR();
+        y(r) = this->getBand(r,h)->omegaNorm();
+      }
+      */
+      for (int r=0; r<_sliceMatrix.rows(); r++) {
+        if (not(_sliceMatrix(r,c))) {
+          //std::cout<<"!!!!!!!r="<<r<<"; c="<<c<<std::endl; 
+        } else {
+          const double Omega = (_sliceMatrix(r,c))->U(t)(2) / (2*M_PI*_sliceMatrix(r,c)->Ccyl()(0));
+          exportFile << t << "\t";                                // 001_tId
+          exportFile << _time[t] << "\t";                         // 002_t
+          exportFile << r << "\t";                                // 003_rId
+          exportFile << _sliceMatrix(r,c)->Ccyl()(0) << "\t";     // 004_r
+          exportFile << c << "\t";                                // 005_zId
+          exportFile << _sliceMatrix(r,c)->Ccyl()(1) << "\t";     // 006_z
+          exportFile << Omega << "\t";                            // 007_omega
+          exportFile << Omega/maxOmega << "\t";                   // 008_omegaNorm
+          exportFile << "\n";                                     //
+          //std::cerr<<"t-"<<t<<"; r-"<<_sliceMatrix.rows()-1<<"; c-"<<c<<";   OmegaNorm: "<<Omega/maxOmega<<std::endl;
+          x(r,0) = _sliceMatrix(r,c)->Ccyl()(0);
+          y(r) = Omega/maxOmega;
+        }
+      }
+      
+      lsfitcreatef(x, y, cA, diffstep, state);
+      lsfitsetcond(state, epsf, epsx, maxits);
+      alglib::lsfitfit(state, function_cx_1_func);
+      lsfitresults(state, info, cA, rep);
+      
+      const double Rz = cA(0);
+      const double W = cA(1);
+      exportFileBand << t << "\t";                                // 001_tId
+      exportFileBand << _time[t] << "\t";                         // 002_t
+      exportFileBand << c << "\t";                                // 003_zId
+      exportFileBand << _sliceMatrix(1,c)->Ccyl()(1) << "\t";     // 004_z
+      exportFileBand << Rz << "\t";                               // 005_RZ
+      exportFileBand << W << "\t";                                // 006_W
+      exportFileBand << "\n";                                     //
+    }
+  }
+  exportFile.close();
+  exportFileBand.close();
 }
 
 void rheometer::loadData () {
@@ -231,20 +335,6 @@ void rheometer::prepareMatrix() {
       calculateAvgU();
     }
   }
-  
-  /*
-  for (size_t r=0; r<RhoValues.size(); r++) {
-    for (size_t c=0; c<ZValues.size(); c++) {
-      if (not(_sliceMatrix(r,c))) {
-        std::cout<<"!!!!!!!r="<<r<<"; c="<<c<<std::endl; 
-      } else {
-        std::cout<<"!r="<<r<<"; "<<(_sliceMatrix(r,c))->Ccyl()(0)<<"c="<<c<<"; "<<(_sliceMatrix(r,c))->Ccyl()(1)
-          <<"   U:["<<(_sliceMatrix(r,c))->U(5)(0)<<"; "<<(_sliceMatrix(r,c))->U(5)(1)<<"; "<<(_sliceMatrix(r,c))->U(5)(2)<<"]"<<std::endl; 
-      }
-    }
-  }
-  */
-  
 }
 
 void  rheometer::calculateAvgU() {

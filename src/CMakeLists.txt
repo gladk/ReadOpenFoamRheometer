@@ -1,7 +1,7 @@
 #===========================================================
 ADD_EXECUTABLE(readopenfoam main.cpp rheometer.cpp)
   
-TARGET_LINK_LIBRARIES(readopenfoam ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(readopenfoam ${Boost_LIBRARIES} ${ALGLIB_LIB})
 INSTALL(TARGETS readopenfoam DESTINATION ${CMAKE_INSTALL_BINDIR})
 #===========================================================
 IF(${VTK_MAJOR_VERSION} EQUAL 6)
