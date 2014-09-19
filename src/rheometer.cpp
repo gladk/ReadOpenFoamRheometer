@@ -146,7 +146,7 @@ rheometer::rheometer (const std::string & outputFolder, const std::string & inpu
   ofstream exportFileBand ("./gnuplot_daten_band");
   
   exportFile     << "#001_tId\t002_t\t003_rId\t004_r\t005_zId\t006_z\t007_omega\t008_omegaNorm\n";
-  exportFileBand << "#001_tId\t002_t\t003_zId\t004_z\005_RZ\t\006_W\n";
+  exportFileBand << "#001_tId\t002_t\t003_zId\t004_z\t005_RZ\t006_W\n";
   
   for (size_t t=0; t<_time.size(); t++) {
     for (int c=0; c<_sliceMatrix.cols(); c++) {
